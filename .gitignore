@@ -1,0 +1,18 @@
+# Rust
+target/
+**/target/
+**/*.rs.bk
+
+# ESP-IDF tools
+**/build/
+**/.venv/
+**/.cargo/config.toml.bk
+
+# Cargo
+Cargo.lock
+ 
+# Keys
+*.pem
+
+# VS Code
+.vscode/
