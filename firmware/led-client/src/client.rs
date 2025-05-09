@@ -22,13 +22,10 @@ impl Client {
         client_id: &str,
         pub_topic: &str,
         sub_topic: &str,
-        server_cert_path: &str,
-        client_cert_path: &str,
-        private_key_path: &str,
     ) -> anyhow::Result<Client> {
-        let server_cert: X509 = convert_static_certificate(server_cert_bytes);
-        let client_cert: X509 = convert_static_certificate(client_cert_bytes);
-        let private_key: X509 = convert_static_certificate(private_key_bytes);
+        let server_cert: X509 = convert_static_certificate(SERVER_CERT);
+        let client_cert: X509 = convert_static_certificate(CLIENT_CERT);
+        let private_key: X509 = convert_static_certificate(PRIVATE_KEY);
 
         let mqtt_client_config = MqttClientConfiguration {
             client_id: Some(client_id),
