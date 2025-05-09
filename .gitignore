@@ -7,9 +7,14 @@ target/
 **/build/
 **/.venv/
 **/.cargo/config.toml.bk
+**/.embuild/
 
 # Cargo
 Cargo.lock
+
+#Env files
+*.env
+cfg.toml
  
 # Keys
 *.pem
