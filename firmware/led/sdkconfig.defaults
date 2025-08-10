@@ -1,0 +1,23 @@
+# Rust often needs a bit of an extra main task stack size compared to C (the default is 3K)
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8000
+
+# Enable stack trace symbols for better debugging
+CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT=y
+CONFIG_ESP_DEBUG_OCDAWARE=y
+CONFIG_ESP_SYSTEM_CHECK_STACK_CANARY=y
+
+# Enable heap debugging
+CONFIG_HEAP_POISONING_COMPREHENSIVE=y
+CONFIG_HEAP_TRACING_STACK_DEPTH=10
+
+# Watchdog configuration
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+
+# Use this to set FreeRTOS kernel tick frequency to 1000 Hz (100 Hz by default).
+# This allows to use 1 ms granularity for thread sleeps (10 ms by default).
+#CONFIG_FREERTOS_HZ=1000
+
+# Workaround for https://github.com/espressif/esp-idf/issues/7631
+#CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n
+#CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=n

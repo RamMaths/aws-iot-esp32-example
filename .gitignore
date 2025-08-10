@@ -18,6 +18,8 @@ cfg.toml
  
 # Keys
 *.pem
+**pem**
+certs/
 
 # VS Code
 .vscode/

@@ -1,7 +1,0 @@
-[workspace]
-members = [
-  "shared-lib",
-  "led-client"
-]
-version = "0.0.1"
-resolver = "3"
