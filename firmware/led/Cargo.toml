@@ -59,3 +59,4 @@ serde = "1.0.219"
 
 [build-dependencies]
 embuild = "0.33"
+toml = "0.8"

@@ -12,9 +12,8 @@ pub struct Client {
     pub sub_topic: String,
 }
 
-const SERVER_CERT: &[u8] = include_bytes!("../certs/AmazonRootCA1.pem");
-const CLIENT_CERT: &[u8] = include_bytes!("../certs/e5773fe2802720cd400ea6651da78055dbbc5ac58973da1b865c7e778375cbaa-certificate.pem.crt");
-const PRIVATE_KEY: &[u8] = include_bytes!("../certs/e5773fe2802720cd400ea6651da78055dbbc5ac58973da1b865c7e778375cbaa-private.pem.key");
+// Include the generated certificate constants from build.rs
+include!(concat!(env!("OUT_DIR"), "/certificates.rs"));
 
 impl Client {
     pub fn new(
