@@ -1,7 +1,0 @@
-[led-client]
-wifi_ssid = ""
-wifi_pass = ""
-mqtt_url = ""
-mqtt_client_id = ""
-mqtt_topic_pub = ""
-mqtt_topic_sub = ""
