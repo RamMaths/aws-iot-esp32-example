@@ -12,14 +12,29 @@ target/
 # Cargo
 Cargo.lock
 
-#Env files
+# Configuration files (sensitive)
 *.env
 cfg.toml
+
+# Generated files by build scripts
+**/certificates.rs
  
-# Keys
+# Keys and certificates (sensitive)
 *.pem
 **pem**
 certs/
+*.crt
+*.key
+*.p12
+*.pfx
 
-# VS Code
+# IDE files
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
