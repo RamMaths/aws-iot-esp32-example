@@ -1,18 +1,62 @@
-# AWS IOT CORE EXAMPLE WITH ESP32
+# AWS IoT Core Example with ESP32
 
-This mono repo contains a solid example of how to build an mqtt client for an Esp32 device as well as the correspoding cloud infrastructure and its configuration using AWS CDK, AWS Lambda and AWS Iot Core. Hopefully it can be helpful as a template.
+This monorepo contains a comprehensive example of building an MQTT client for ESP32 devices that connects securely to AWS IoT Core, along with the corresponding cloud infrastructure using AWS CDK, AWS Lambda, and AWS IoT Core. This project serves as a production-ready template for IoT applications.
 
-## Getting started with firmware
+## 🚀 Features
 
-Make sure you installed the ESP-IDF envirnoment necessary to build and flash firmware in esp32 devices described in [The Rust on ESP Book](https://docs.esp-rs.org/book/installation/index.html). After we install espup a bash script will be generated at `~/export-esp.sh` this script exports the envirnoment variables needed to build any esp-idf project.
+- **Secure MQTT over TLS** connection to AWS IoT Core
+- **Configuration-driven** setup using TOML files (no hardcoded secrets)
+- **Automatic certificate loading** from configurable paths
+- **Wi-Fi connectivity** with robust error handling and retry logic
+- **Build-time validation** for configuration and certificates
+- **ESP-IDF integration** with Rust using esp-idf-svc
+- **Comprehensive logging** and debugging support
 
-Now it's time to build our example project! depending on the board (MCU) we are using we want to update our configuration, `firmware/led-client/.cargo/config.toml` a list of supported MCUs and it's correspoing targets can be found [at](https://github.com/esp-rs/esp-idf-svc#examples).
+## 📋 Prerequisites
 
+### Development Environment Setup
+
+1. **Install Rust and ESP-IDF toolchain** following [The Rust on ESP Book](https://docs.esp-rs.org/book/installation/index.html)
+
+2. **Install espup** and configure the environment:
+   ```bash
+   cargo install espup
+   espup install
+   source ~/export-esp.sh  # Run this in every new terminal session
+   ```
+
+3. **Install additional tools**:
+   ```bash
+   cargo install cargo-espflash
+   ```
+
+### AWS IoT Core Setup
+
+1. **Create an IoT Thing** in AWS IoT Console
+2. **Generate device certificates** and download:
+   - Device certificate (`.pem.crt`)
+   - Private key (`.pem.key`)
+   - Amazon Root CA 1 certificate
+3. **Create and attach an IoT policy** to your certificate with appropriate permissions
+
+## 🛠️ Project Setup
+
+### 1. Navigate to the Firmware Directory
+
+```bash
+cd firmware/led
+```
+
+### 2. Configure Your Target Device
+
+Update `firmware/led/.cargo/config.toml` based on your ESP32 variant. Supported targets can be found [here](https://github.com/esp-rs/esp-idf-svc#examples).
+
+**For ESP32-S3:**
 ```toml
 [build]
-target = "xtensa-esp32s3-espidf" # <----- THIS IS THE TARGET THE BINARY WILL BE COMPILED TO
+target = "xtensa-esp32s3-espidf"
 
-[target.xtensa-esp32s3-espidf] # <----- CONFIGURATION FOR THAT TARGET
+[target.xtensa-esp32s3-espidf]
 linker = "ldproxy"
 runner = "espflash flash --monitor"
 rustflags = [ "--cfg",  "espidf_time64"]
@@ -21,36 +65,214 @@ rustflags = [ "--cfg",  "espidf_time64"]
 build-std = ["std", "panic_abort"]
 
 [env]
-MCU="esp32s3" # <----- THE ACTUAL MICRO CONTROLLER UNIT WE ARE USING
-# Note: this variable is not used by the pio builder (`cargo build --features pio`)
+MCU="esp32s3"
 ESP_IDF_VERSION = "v5.3.2"
 ```
 
-After configuring our board we want to copy and paste the configuration file.
+**For ESP32-C3:**
+```toml
+[build]
+target = "riscv32imc-esp-espidf"
 
-```sh
-cd firmware/led-client
-cp cfg-example.toml cfg.toml
+[target.riscv32imc-esp-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor"
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[env]
+MCU="esp32c3"
+ESP_IDF_VERSION = "v5.3.2"
 ```
 
-This is how the file looks so you might want to update the values as your needs.
+### 3. Create Configuration File
+
+```bash
+cp cfg.toml.example cfg.toml
+```
+
+### 4. Configure Your Settings
+
+Edit `cfg.toml` with your specific values:
 
 ```toml
-[led-client]
-wifi_ssid = ""
-wifi_pass = ""
-mqtt_url = ""
-mqtt_client_id = ""
-mqtt_topic_pub = ""
-mqtt_topic_sub = ""
+[led]
+# Wi-Fi Configuration
+wifi_ssid = "YOUR_WIFI_NETWORK"
+wifi_pass = "YOUR_WIFI_PASSWORD"
+
+# AWS IoT Core Configuration  
+mqtt_url = "mqtts://your-endpoint.iot.region.amazonaws.com"
+mqtt_client_id = "your-unique-device-id"
+mqtt_topic_pub = "device/data"
+mqtt_topic_sub = "device/commands"
+
+# Certificate Paths (relative to project root)
+cert_ca = "certs/AmazonRootCA1.pem"
+cert_crt = "certs/your-device-certificate.pem.crt"
+cert_key = "certs/your-private-key.pem.key"
 ```
 
-To finally build the project we need to setup this envirnoment variables with the correct paths pointing to your certificates needed to make a secure SSL connection with AWS.
+### 5. Add Your Certificates
 
-```sh
-export SERVER_CERT_PATH="./AmazonRootCA1.pem"
-export CLIENT_CERT_PATH="./Device-certificate.pem.crt"
-export PRIVATE_KEY_PATH="./private-key-private.pem.key"
+Create the `certs/` directory and place your AWS IoT certificates:
 
+```bash
+mkdir -p certs
+# Copy your certificates to the certs/ directory:
+# - AmazonRootCA1.pem
+# - your-device-certificate.pem.crt  
+# - your-private-key.pem.key
+```
+
+## 🔨 Building and Flashing
+
+### Build the Project
+
+```bash
 cargo build --release
 ```
+
+The build process will:
+- Validate your `cfg.toml` configuration
+- Check that all certificate files exist
+- Generate certificate loading code from your configuration
+- Compile the firmware
+
+### Flash to Device
+
+```bash
+cargo run --release
+```
+
+Or use espflash directly:
+
+```bash
+espflash flash --monitor target/xtensa-esp32s3-espidf/release/led
+```
+
+## 📁 Project Structure
+
+```
+firmware/led/
+├── Cargo.toml              # Rust dependencies and project config
+├── build.rs                # Build script for config validation and cert generation
+├── cfg.toml.example        # Configuration template
+├── cfg.toml                # Your actual configuration (gitignored)
+├── certs/                  # Certificate directory (gitignored)
+│   ├── AmazonRootCA1.pem
+│   ├── device-cert.pem.crt
+│   └── private-key.pem.key
+└── src/
+    ├── main.rs            # Application entry point
+    ├── lib.rs             # Library entry point  
+    ├── startup.rs         # Wi-Fi and MQTT setup, configuration management
+    └── client.rs          # MQTT client implementation
+```
+
+## 🔧 Configuration Reference
+
+### Required Configuration Fields
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `wifi_ssid` | Wi-Fi network name | `"MyWiFiNetwork"` |
+| `wifi_pass` | Wi-Fi password | `"MySecretPassword"` |
+| `mqtt_url` | AWS IoT Core endpoint | `"mqtts://abc123.iot.us-east-1.amazonaws.com"` |
+| `mqtt_client_id` | Unique device identifier | `"my-esp32-device-001"` |
+| `mqtt_topic_pub` | Topic for publishing data | `"sensors/temperature"` |
+| `mqtt_topic_sub` | Topic for receiving commands | `"commands/led"` |
+
+### Optional Certificate Configuration
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `cert_ca` | Root CA certificate path | `"certs/AmazonRootCA1.pem"` |
+| `cert_crt` | Device certificate path | Auto-detected |
+| `cert_key` | Private key path | Auto-detected |
+
+## 🐛 Troubleshooting
+
+### Build Issues
+
+**Error: "cfg.toml file not found"**
+```bash
+cp cfg.toml.example cfg.toml
+# Edit cfg.toml with your values
+```
+
+**Error: "Certificate file not found"**
+- Ensure all certificate files exist in the specified paths
+- Check that certificate paths in `cfg.toml` are correct
+- Verify certificates are valid and not corrupted
+
+**Error: "WiFi SSID is empty"**
+- Check that your `cfg.toml` has all required fields filled out
+- Ensure the `[led]` section exists and is correctly formatted
+
+### Runtime Issues
+
+**Wi-Fi Connection Failed**
+- Verify SSID and password are correct
+- Check Wi-Fi signal strength
+- Ensure your network supports the ESP32's Wi-Fi standards
+
+**MQTT Connection Failed**  
+- Verify your AWS IoT Core endpoint URL
+- Check that your device certificate is active in AWS IoT Console
+- Ensure your IoT policy allows the necessary MQTT actions
+- Verify certificate files are valid and readable
+
+**Certificate Errors**
+- Ensure you're using the correct Amazon Root CA certificate
+- Verify device certificate and private key match
+- Check that certificates haven't expired
+
+### Debugging
+
+Enable verbose logging by modifying the log level in your code:
+
+```rust
+esp_idf_svc::log::EspLogger::initialize_default();
+log::set_max_level(log::LevelFilter::Debug);
+```
+
+Monitor serial output during execution:
+```bash
+espflash monitor
+```
+
+## 🔐 Security Best Practices
+
+1. **Never commit sensitive files**:
+   - `cfg.toml` (contains credentials)
+   - Certificate files (`.pem`, `.crt`, `.key`)
+
+2. **Use unique device identifiers** for each device
+
+3. **Implement least-privilege IoT policies** in AWS
+
+4. **Regularly rotate certificates** following AWS IoT best practices
+
+5. **Enable AWS CloudTrail** for API monitoring
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly on actual hardware
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+For issues and questions:
+- Check the [troubleshooting section](#-troubleshooting) above
+- Review [ESP-IDF documentation](https://docs.espressif.com/projects/esp-idf/)
+- Consult [The Rust on ESP Book](https://docs.esp-rs.org/book/)
+- Open an issue in this repository
