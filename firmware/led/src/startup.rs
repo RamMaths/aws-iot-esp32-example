@@ -20,6 +20,12 @@ pub struct Config {
     mqtt_topic_pub: &'static str,
     #[default("")]
     mqtt_topic_sub: &'static str,
+    #[default("certs/AmazonRootCA1.pem")]
+    cert_ca: &'static str,
+    #[default("certs/e5773fe2802720cd400ea6651da78055dbbc5ac58973da1b865c7e778375cbaa-certificate.pem.crt")]
+    cert_crt: &'static str,
+    #[default("certs/e5773fe2802720cd400ea6651da78055dbbc5ac58973da1b865c7e778375cbaa-private.pem.key")]
+    cert_key: &'static str,
 }
 
 // Add debug logging for config values
@@ -32,6 +38,33 @@ impl Config {
         log::info!("  mqtt_client_id: '{}'", self.mqtt_client_id);
         log::info!("  mqtt_topic_pub: '{}'", self.mqtt_topic_pub);
         log::info!("  mqtt_topic_sub: '{}'", self.mqtt_topic_sub);
+        log::info!("  cert_ca: '{}'", self.cert_ca);
+        log::info!("  cert_crt: '{}'", self.cert_crt);
+        log::info!("  cert_key: '{}'", self.cert_key);
+    }
+    
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.wifi_ssid.is_empty() {
+            return Err(anyhow::anyhow!("WiFi SSID is empty! Please configure wifi_ssid in cfg.toml"));
+        }
+        if self.wifi_pass.is_empty() {
+            return Err(anyhow::anyhow!("WiFi password is empty! Please configure wifi_pass in cfg.toml"));
+        }
+        if self.mqtt_url.is_empty() {
+            return Err(anyhow::anyhow!("MQTT URL is empty! Please configure mqtt_url in cfg.toml"));
+        }
+        if self.mqtt_client_id.is_empty() {
+            return Err(anyhow::anyhow!("MQTT client ID is empty! Please configure mqtt_client_id in cfg.toml"));
+        }
+        if self.mqtt_topic_pub.is_empty() {
+            return Err(anyhow::anyhow!("MQTT publish topic is empty! Please configure mqtt_topic_pub in cfg.toml"));
+        }
+        if self.mqtt_topic_sub.is_empty() {
+            return Err(anyhow::anyhow!("MQTT subscribe topic is empty! Please configure mqtt_topic_sub in cfg.toml"));
+        }
+        
+        log::info!("Configuration validation passed!");
+        Ok(())
     }
 }
 
@@ -48,12 +81,13 @@ impl App {
         let nvs = EspDefaultNvsPartition::take()?;
         let app_config: Config = CONFIG;
         app_config.debug_print();
+        app_config.validate()?;
 
         let mut wifi_driver = EspWifi::new(peripherals.modem, sys_loop, Some(nvs))?;
 
         wifi_driver.set_configuration(&wifiConfiguration::Client(ClientConfiguration {
-            ssid: "INFINITUM450B".try_into().unwrap(),
-            password: "dn2PuRUEHt".try_into().unwrap(),
+            ssid: app_config.wifi_ssid.try_into().unwrap(),
+            password: app_config.wifi_pass.try_into().unwrap(),
             ..Default::default()
         }))?;
 
@@ -85,10 +119,10 @@ impl App {
 
         log::info!("Creating MQTT client...");
         let client = match Client::new(
-            "mqtts://d044673527boztw2638hx-ats.iot.us-east-1.amazonaws.com",
-            "esp32s3",
-            "topic/pub",
-            "topic/sub",
+            app_config.mqtt_url,
+            app_config.mqtt_client_id,
+            app_config.mqtt_topic_pub,
+            app_config.mqtt_topic_sub,
         ) {
             Ok(client) => {
                 log::info!("MQTT client created successfully");

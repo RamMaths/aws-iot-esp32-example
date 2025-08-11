@@ -1,0 +1,15 @@
+[led]
+# WiFi Configuration
+wifi_ssid = "YOUR_WIFI_SSID"
+wifi_pass = "YOUR_WIFI_PASSWORD"
+
+# MQTT Configuration
+mqtt_url = "mqtts://your-endpoint.iot.region.amazonaws.com"
+mqtt_client_id = "your-device-id"
+mqtt_topic_pub = "your/pub/topic"
+mqtt_topic_sub = "your/sub/topic"
+
+# Certificate Paths (relative to project root)
+cert_ca = "certs/AmazonRootCA1.pem"
+cert_crt = "certs/your-certificate.pem.crt"
+cert_key = "certs/your-private.pem.key"
