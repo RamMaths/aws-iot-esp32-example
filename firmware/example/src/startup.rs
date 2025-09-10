@@ -20,11 +20,11 @@ pub struct Config {
     mqtt_topic_pub: &'static str,
     #[default("")]
     mqtt_topic_sub: &'static str,
-    #[default("certs/AmazonRootCA1.pem")]
+    #[default("")]
     cert_ca: &'static str,
-    #[default("certs/e5773fe2802720cd400ea6651da78055dbbc5ac58973da1b865c7e778375cbaa-certificate.pem.crt")]
+    #[default("")]
     cert_crt: &'static str,
-    #[default("certs/e5773fe2802720cd400ea6651da78055dbbc5ac58973da1b865c7e778375cbaa-private.pem.key")]
+    #[default("")]
     cert_key: &'static str,
 }
 

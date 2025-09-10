@@ -1,4 +1,6 @@
-use anyhow::Context;
+pub mod client;
+pub mod startup;
+
 use crossbeam_channel::bounded;
 use embedded_svc::mqtt::client::EventPayload::Received;
 use esp_idf_svc::sys::EspError;
@@ -6,11 +8,11 @@ use esp_idf_svc::hal::{
     gpio::{OutputPin, PinDriver},
     peripherals::Peripherals,
 };
-use esp_idf_svc::mqtt::client::{Event, QoS};
+use esp_idf_svc::mqtt::client::{QoS};
 use log::*;
 use serde::Deserialize;
 use std::time::Duration;
-use led::startup::App;
+use startup::App;
 
 fn main() -> anyhow::Result<()> {
     // It is necessary to call this function once. Otherwise some patches to the runtime
