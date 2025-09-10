@@ -44,12 +44,12 @@ This monorepo contains a comprehensive example of building an MQTT client for ES
 ### 1. Navigate to the Firmware Directory
 
 ```bash
-cd firmware/led
+cd firmware/example
 ```
 
 ### 2. Configure Your Target Device
 
-Update `firmware/led/.cargo/config.toml` based on your ESP32 variant. Supported targets can be found [here](https://github.com/esp-rs/esp-idf-svc#examples).
+Update `firmware/example/.cargo/config.toml` based on your ESP32 variant. Supported targets can be found [here](https://github.com/esp-rs/esp-idf-svc#examples).
 
 **For ESP32-S3:**
 ```toml
@@ -97,7 +97,7 @@ cp cfg.toml.example cfg.toml
 Edit `cfg.toml` with your specific values:
 
 ```toml
-[led]
+[example]
 # Wi-Fi Configuration
 wifi_ssid = "YOUR_WIFI_NETWORK"
 wifi_pass = "YOUR_WIFI_PASSWORD"
@@ -149,13 +149,13 @@ cargo run --release
 Or use espflash directly:
 
 ```bash
-espflash flash --monitor target/xtensa-esp32s3-espidf/release/led
+espflash flash --monitor target/xtensa-esp32s3-espidf/release/example
 ```
 
 ## 📁 Project Structure
 
 ```
-firmware/led/
+firmware/example/
 ├── Cargo.toml              # Rust dependencies and project config
 ├── build.rs                # Build script for config validation and cert generation
 ├── cfg.toml.example        # Configuration template
@@ -209,7 +209,7 @@ cp cfg.toml.example cfg.toml
 
 **Error: "WiFi SSID is empty"**
 - Check that your `cfg.toml` has all required fields filled out
-- Ensure the `[led]` section exists and is correctly formatted
+- Ensure the `[example]` section exists and is correctly formatted
 
 ### Runtime Issues
 
