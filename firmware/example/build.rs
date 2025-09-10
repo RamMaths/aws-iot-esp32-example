@@ -19,7 +19,7 @@ fn main() {
         .expect("Failed to parse cfg.toml as valid TOML");
     
     // Extract led section
-    let led_config = cfg.get("led")
+    let led_config = cfg.get("example")
         .expect("cfg.toml missing [led] section");
     
     // Basic validation - check for required fields

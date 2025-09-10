@@ -1,4 +1,4 @@
-[led]
+[example]
 # WiFi Configuration
 wifi_ssid = "YOUR_WIFI_SSID"
 wifi_pass = "YOUR_WIFI_PASSWORD"
