@@ -32,6 +32,63 @@ This monorepo contains a comprehensive example of building an MQTT client for ES
 
 ### AWS IoT Core Setup
 
+You can set up AWS IoT Core resources in two ways: **using our Terraform automation (recommended)** or manually through the AWS Console.
+
+#### Option A: Automated Setup with Terraform (Recommended)
+
+Our Terraform module automatically creates all necessary AWS IoT Core resources and downloads certificates.
+
+**Prerequisites:**
+- [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate permissions
+- [Terraform](https://www.terraform.io/downloads.html) installed (>= 1.0.0)
+
+**Steps:**
+
+1. **Navigate to terraform directory:**
+   ```bash
+   cd terraform
+   ```
+
+2. **Configure your variables:**
+   ```bash
+   cp terraform.tfvars.example terraform.tfvars
+   ```
+   
+   Edit `terraform.tfvars` with your specific values:
+   ```hcl
+   thing_name = "my-esp32-device-001"
+   topic_prefix = "sensors"  # Your custom topic prefix
+   region = "us-east-1"
+   tags = {
+     Project = "My-IoT-Project"
+     Owner   = "your-name"
+   }
+   ```
+
+3. **Initialize and deploy:**
+   ```bash
+   terraform init
+   terraform plan    # Review the resources to be created
+   terraform apply   # Type 'yes' to confirm
+   ```
+
+4. **Terraform will automatically:**
+   - Create IoT Thing, Certificate, and Policy in AWS
+   - Download all certificate files to `certs/` directory
+   - Display configuration template and next steps
+   - Generate the exact cfg.toml template you need
+
+5. **Copy certificates to firmware project:**
+   ```bash
+   cp -r certs/ ../firmware/example/
+   ```
+
+6. **Use the generated cfg.toml template** displayed in Terraform output
+
+#### Option B: Manual Setup via AWS Console
+
+If you prefer to set up resources manually:
+
 1. **Create an IoT Thing** in AWS IoT Console
 2. **Generate device certificates** and download:
    - Device certificate (`.pem.crt`)
@@ -155,20 +212,32 @@ espflash flash --monitor target/xtensa-esp32s3-espidf/release/example
 ## 📁 Project Structure
 
 ```
-firmware/example/
-├── Cargo.toml              # Rust dependencies and project config
-├── build.rs                # Build script for config validation and cert generation
-├── cfg.toml.example        # Configuration template
-├── cfg.toml                # Your actual configuration (gitignored)
-├── certs/                  # Certificate directory (gitignored)
-│   ├── AmazonRootCA1.pem
-│   ├── device-cert.pem.crt
-│   └── private-key.pem.key
-└── src/
-    ├── main.rs            # Application entry point
-    ├── lib.rs             # Library entry point  
-    ├── startup.rs         # Wi-Fi and MQTT setup, configuration management
-    └── client.rs          # MQTT client implementation
+├── firmware/example/       # ESP32 Rust firmware
+│   ├── Cargo.toml         # Rust dependencies and project config
+│   ├── build.rs           # Build script for config validation and cert generation
+│   ├── cfg.toml.example   # Configuration template
+│   ├── cfg.toml           # Your actual configuration (gitignored)
+│   ├── certs/             # Certificate directory (gitignored)
+│   │   ├── AmazonRootCA1.pem
+│   │   ├── device-cert.pem.crt
+│   │   └── private-key.pem.key
+│   └── src/
+│       ├── main.rs        # Application entry point
+│       ├── lib.rs         # Library entry point  
+│       ├── startup.rs     # Wi-Fi and MQTT setup, configuration management
+│       └── client.rs      # MQTT client implementation
+├── terraform/              # AWS infrastructure as code
+│   ├── terraform.tf       # Terraform and provider configuration
+│   ├── main.tf            # Root module configuration
+│   ├── variables.tf       # Input variables
+│   ├── outputs.tf         # Output values
+│   ├── terraform.tfvars.example  # Variables template
+│   ├── terraform.tfvars   # Your actual variables (gitignored)
+│   └── thing/             # IoT Thing module
+│       ├── main.tf        # Thing, certificate, and policy resources
+│       ├── variables.tf   # Module input variables
+│       └── outputs.tf     # Module outputs
+└── README.md              # This file
 ```
 
 ## 🔧 Configuration Reference
@@ -193,6 +262,50 @@ firmware/example/
 | `cert_key` | Private key path | Auto-detected |
 
 ## 🐛 Troubleshooting
+
+### Terraform Issues
+
+**Error: "AccessDeniedException" or permissions errors**
+- Ensure your AWS CLI is configured: `aws configure`
+- Verify your AWS credentials have the necessary IoT permissions:
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "iot:CreateThing",
+          "iot:CreateKeysAndCertificate",
+          "iot:CreatePolicy",
+          "iot:AttachPolicy",
+          "iot:AttachThingPrincipal",
+          "iot:DescribeEndpoint",
+          "iot:DeleteThing",
+          "iot:DeleteCertificate",
+          "iot:DeletePolicy",
+          "iot:DetachPolicy",
+          "iot:DetachThingPrincipal",
+          "iot:UpdateCertificate",
+          "sts:GetCallerIdentity"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }
+  ```
+
+**Error: "terraform.tfvars not found"**
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
+```
+
+**Error: Certificate files not downloading**
+- Check that `curl` is installed on your system
+- Verify internet connectivity to download Amazon Root CA certificates
+- Check file permissions in the current directory
 
 ### Build Issues
 
