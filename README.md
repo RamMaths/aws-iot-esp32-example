@@ -217,9 +217,35 @@ match message_receiver.try_recv() {
 
 ### ESP32 Variant Configuration
 
-Update `.cargo/config.toml` for your specific ESP32 model:
+The project supports multiple ESP32 variants with different architectures. Choose the configuration that matches your hardware.
 
-**ESP32-S3:**
+> **📋 Reference:** See all supported targets at [esp-idf-svc examples](https://github.com/esp-rs/esp-idf-svc#examples)
+
+#### Switching Between ESP32 Variants
+
+**Step 1: Install Required Toolchain**
+
+ESP32 variants use different architectures requiring specific toolchains:
+
+```bash
+# For Xtensa-based chips (ESP32, ESP32-S2, ESP32-S3)
+espup install --targets esp32,esp32s2,esp32s3
+
+# For RISC-V-based chips (ESP32-C3, ESP32-C6, ESP32-H2)
+espup install --targets esp32c3,esp32c6,esp32h2
+
+# Or install all targets at once
+espup install --targets all
+
+# Source environment (required every terminal session)
+source ~/export-esp.sh
+```
+
+**Step 2: Update `.cargo/config.toml`**
+
+Choose the appropriate configuration for your target:
+
+**ESP32-S3 (Xtensa Architecture):**
 ```toml
 [build]
 target = "xtensa-esp32s3-espidf"
@@ -229,12 +255,15 @@ linker = "ldproxy"
 runner = "espflash flash --monitor"
 rustflags = ["--cfg", "espidf_time64"]
 
+[unstable]
+build-std = ["std", "panic_abort"]
+
 [env]
 MCU = "esp32s3"
 ESP_IDF_VERSION = "v5.3.2"
 ```
 
-**ESP32-C3:**
+**ESP32-C3 (RISC-V Architecture):**
 ```toml
 [build]
 target = "riscv32imc-esp-espidf"
@@ -243,9 +272,77 @@ target = "riscv32imc-esp-espidf"
 linker = "ldproxy"
 runner = "espflash flash --monitor"
 
+[unstable]
+build-std = ["std", "panic_abort"]
+
 [env]
 MCU = "esp32c3"
 ESP_IDF_VERSION = "v5.3.2"
+```
+
+**ESP32 (Original - Xtensa Architecture):**
+```toml
+[build]
+target = "xtensa-esp32-espidf"
+
+[target.xtensa-esp32-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor"
+rustflags = ["--cfg", "espidf_time64"]
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[env]
+MCU = "esp32"
+ESP_IDF_VERSION = "v5.3.2"
+```
+
+**Step 3: Clean and Rebuild**
+
+When switching targets, always clean previous builds:
+
+```bash
+cargo clean
+cargo build --release
+```
+
+#### Architecture Differences
+
+| Chip Family | Architecture | Rust Target | Key Features |
+|-------------|--------------|-------------|--------------|
+| ESP32 | Xtensa LX6 | `xtensa-esp32-espidf` | Dual-core, WiFi + Bluetooth |
+| ESP32-S2 | Xtensa LX7 | `xtensa-esp32s2-espidf` | Single-core, WiFi only |
+| ESP32-S3 | Xtensa LX7 | `xtensa-esp32s3-espidf` | Dual-core, WiFi + Bluetooth 5 |
+| ESP32-C3 | RISC-V | `riscv32imc-esp-espidf` | Single-core, WiFi + Bluetooth 5 |
+| ESP32-C6 | RISC-V | `riscv32imac-esp-espidf` | WiFi 6 + Bluetooth 5 |
+| ESP32-H2 | RISC-V | `riscv32imac-esp-espidf` | Thread/Zigbee focused |
+
+#### Troubleshooting Architecture Changes
+
+**"Linker not found" errors:**
+```bash
+# Ensure you've installed the correct toolchain
+espup install --targets <your-chip>
+source ~/export-esp.sh
+
+# Check installed targets
+rustup target list --installed | grep esp
+```
+
+**"Target not found" errors:**
+```bash
+# Install the specific Rust target
+rustup target add riscv32imc-esp-espidf  # For RISC-V
+rustup target add xtensa-esp32s3-espidf  # For Xtensa
+```
+
+**Build cache issues:**
+```bash
+# Clean everything and rebuild
+cargo clean
+rm -rf target/
+cargo build --release
 ```
 
 ### Terraform Configuration Details
@@ -427,6 +524,40 @@ Check AWS IoT Core logs in CloudWatch for successful connections.
 ## 🐛 Troubleshooting
 
 ### Build Issues
+
+**ESP32 Architecture/Target Issues:**
+
+*"Linker 'riscv32-esp-elf-gcc' not found" (when switching to ESP32-C3):*
+```bash
+# Install RISC-V toolchain
+espup install --targets esp32c3
+source ~/export-esp.sh
+cargo clean
+cargo build --release
+```
+
+*"Linker 'xtensa-esp32s3-elf-gcc' not found" (when switching to ESP32-S3):*
+```bash
+# Install Xtensa toolchain
+espup install --targets esp32s3
+source ~/export-esp.sh
+cargo clean
+cargo build --release
+```
+
+*"Target 'riscv32imc-esp-espidf' not found":*
+```bash
+# The target wasn't installed properly
+rustup target add riscv32imc-esp-espidf
+```
+
+*Mixed architecture build errors:*
+```bash
+# Clean all build artifacts when switching architectures
+cargo clean
+rm -rf target/
+cargo build --release
+```
 
 **"anyhow not found" errors:**
 - ✅ Fixed in v2.0 - We removed the anyhow dependency
