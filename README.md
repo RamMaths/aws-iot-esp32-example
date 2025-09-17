@@ -425,7 +425,7 @@ let text = String::from_utf8_lossy(&raw_data);
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+GPL-3.0 License - see [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
