@@ -27,10 +27,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         // Check for MQTT messages without blocking
         match message_receiver.try_recv() {
-            Ok(message) => {
-                info!("Received message: {}", message);
-                let payload = format!("Message received in esp32: {}", message);
-                app.client.publish(&payload)?;
+            Ok(raw_data) => {
+                // Convert raw data to text
+                let message_text = String::from_utf8_lossy(&raw_data);
+                info!("Received message: {}", message_text);
+                info!("Publishing message: {}", message_text);
+                app.client.publish(&message_text)?;
             }
             Err(_) => {
                 // No message received, continue with other tasks

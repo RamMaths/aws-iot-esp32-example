@@ -7,20 +7,13 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use std::time::Duration;
 use std::{mem, slice, thread};
 use log::*;
-use serde::Deserialize;
-use serde_json;
-
-#[derive(Deserialize)]
-pub struct MqttMessage {
-    pub action: String,
-}
 
 pub struct Client {
     pub mqtt_client: EspMqttClient<'static>,
     pub mqtt_connection: Option<EspMqttConnection>,
     pub pub_topic: String,
     pub sub_topic: String,
-    message_sender: Option<Sender<String>>,
+    message_sender: Option<Sender<Vec<u8>>>,
 }
 
 // Include the generated certificate constants from build.rs
@@ -78,9 +71,9 @@ impl Client {
         })
     }
 
-    /// Start non-blocking message listener and return a receiver for messages
-    pub fn start_message_listener(&mut self) -> Result<Receiver<String>, Box<dyn std::error::Error>> {
-        let (tx, rx) = bounded::<String>(10);
+    /// Start non-blocking message listener and return a receiver for raw message data
+    pub fn start_message_listener(&mut self) -> Result<Receiver<Vec<u8>>, Box<dyn std::error::Error>> {
+        let (tx, rx) = bounded::<Vec<u8>>(10);
         self.message_sender = Some(tx.clone());
 
         // Take the connection from the Option
@@ -94,8 +87,6 @@ impl Client {
                 let mut connection = connection;
 
                 while let Ok(event) = connection.next() {
-                    info!("[Queue] Event: {}", event.payload());
-
                     if let Received {
                         id: _,
                         topic: _,
@@ -103,7 +94,7 @@ impl Client {
                         details: _,
                     } = event.payload()
                     {
-                        if let Err(e) = tx.send(String::from_raw_parts(data)) {
+                        if let Err(e) = tx.send(data.to_vec()) {
                             error!("Failed to send message to channel: {}", e);
                             break;
                         }
@@ -142,7 +133,6 @@ impl Client {
             false,
             payload.as_bytes(),
         )?;
-        info!("Published \"{}\" to topic \"{}\"", payload, self.pub_topic);
         Ok(())
     }
 }
