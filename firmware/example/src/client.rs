@@ -1,15 +1,19 @@
 use esp_idf_svc::{
-    mqtt::client::{EspMqttClient, EspMqttConnection, MqttClientConfiguration},
+    mqtt::client::{EspMqttClient, EspMqttConnection, MqttClientConfiguration, QoS},
     tls::X509,
 };
+use embedded_svc::mqtt::client::EventPayload::Received;
+use crossbeam_channel::{bounded, Receiver, Sender};
 use std::time::Duration;
-use std::{mem, slice};
+use std::{mem, slice, thread};
+use log::*;
 
 pub struct Client {
     pub mqtt_client: EspMqttClient<'static>,
-    pub mqtt_connection: EspMqttConnection,
+    pub mqtt_connection: Option<EspMqttConnection>,
     pub pub_topic: String,
     pub sub_topic: String,
+    message_sender: Option<Sender<Vec<u8>>>,
 }
 
 // Include the generated certificate constants from build.rs
@@ -21,7 +25,7 @@ impl Client {
         client_id: &str,
         pub_topic: &str,
         sub_topic: &str,
-    ) -> anyhow::Result<Client> {
+    ) -> Result<Client, Box<dyn std::error::Error>> {
         log::info!("Loading certificates...");
         log::info!("Server cert size: {} bytes", SERVER_CERT.len());
         log::info!("Client cert size: {} bytes", CLIENT_CERT.len());
@@ -60,10 +64,76 @@ impl Client {
 
         Ok(Self {
             mqtt_client,
-            mqtt_connection,
+            mqtt_connection: Some(mqtt_connection),
             pub_topic: pub_topic.to_string(),
             sub_topic: sub_topic.to_string(),
+            message_sender: None,
         })
+    }
+
+    /// Start non-blocking message listener and return a receiver for raw message data
+    pub fn start_message_listener(&mut self) -> Result<Receiver<Vec<u8>>, Box<dyn std::error::Error>> {
+        let (tx, rx) = bounded::<Vec<u8>>(10);
+        self.message_sender = Some(tx.clone());
+
+        // Take the connection from the Option
+        let connection = self.mqtt_connection.take()
+            .ok_or("MQTT connection already taken")?;
+
+        thread::Builder::new()
+            .stack_size(6000)
+            .spawn(move || {
+                info!("MQTT message listener started");
+                let mut connection = connection;
+
+                while let Ok(event) = connection.next() {
+                    if let Received {
+                        id: _,
+                        topic: _,
+                        data,
+                        details: _,
+                    } = event.payload()
+                    {
+                        if let Err(e) = tx.send(data.to_vec()) {
+                            error!("Failed to send message to channel: {}", e);
+                            break;
+                        }
+                    }
+                }
+
+                info!("MQTT message listener stopped");
+            })
+            .map_err(|e| format!("Failed to spawn message listener thread: {}", e))?;
+
+        Ok(rx)
+    }
+
+    /// Subscribe to the configured topic
+    pub fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        loop {
+            match self.mqtt_client.subscribe(&self.sub_topic, QoS::AtMostOnce) {
+                Ok(_) => {
+                    info!("Subscribed to topic \"{}\"", self.sub_topic);
+                    break;
+                }
+                Err(e) => {
+                    error!("Failed to subscribe to topic \"{}\": {}, retrying...", self.sub_topic, e);
+                    thread::sleep(Duration::from_millis(500));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Publish a message to the configured publish topic
+    pub fn publish(&mut self, payload: &str) -> Result<(), Box<dyn std::error::Error>> {
+        self.mqtt_client.enqueue(
+            &self.pub_topic,
+            QoS::AtMostOnce,
+            false,
+            payload.as_bytes(),
+        )?;
+        Ok(())
     }
 }
 

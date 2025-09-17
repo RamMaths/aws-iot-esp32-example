@@ -16,6 +16,16 @@ Cargo.lock
 *.env
 cfg.toml
 
+# Terraform sensitive files
+*.tfvars
+*.tfvars.json
+terraform.tfstate
+terraform.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+*.tfplan.*
+
 # Generated files by build scripts
 **/certificates.rs
  
@@ -23,6 +33,7 @@ cfg.toml
 *.pem
 **pem**
 certs/
+certs*/
 *.crt
 *.key
 *.p12
