@@ -75,7 +75,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn spawn() -> Result<App, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<App, Box<dyn std::error::Error>> {
         let peripherals = unsafe { Peripherals::new() };
         let sys_loop = EspSystemEventLoop::take()?;
         let nvs = EspDefaultNvsPartition::take()?;
