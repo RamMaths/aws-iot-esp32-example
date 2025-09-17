@@ -7,9 +7,11 @@ A comprehensive, production-ready template for connecting ESP32 devices to AWS I
 - **🔒 Secure MQTT over TLS** - End-to-end encrypted communication with AWS IoT Core
 - **🏗️ Infrastructure as Code** - Complete Terraform automation for AWS resources
 - **🦀 Modern Rust Firmware** - Clean, safe, and efficient ESP32 code using esp-idf-svc
+- **📡 JSON Message Protocol** - Structured messaging with automatic parsing and type safety
 - **📦 Generalized MQTT Client** - Reusable client that handles any message format
 - **⚡ Non-blocking Architecture** - Efficient message processing without blocking main thread
 - **🔧 Configuration-driven** - No hardcoded secrets, all settings via TOML files
+- **🔄 Backward Compatibility** - Fallback support for plain text messages
 - **📊 Comprehensive Logging** - Detailed debugging and monitoring capabilities
 - **🔄 Automatic Certificate Management** - Seamless certificate provisioning and loading
 
@@ -119,9 +121,19 @@ espflash flash --monitor target/xtensa-esp32s3-espidf/release/example
 
 ## 🏛️ Architecture Overview
 
-### Recent Improvements (v2.0)
+### Latest Improvements (v2.1)
 
-Our latest architecture refactoring brings significant improvements:
+Our latest updates include structured JSON messaging capabilities:
+
+#### ✅ **JSON Message Protocol**
+- **Structured messaging** - JSON format for reliable command/response patterns
+- **Type-safe parsing** - Serde-based serialization with compile-time validation
+- **Backward compatibility** - Fallback to plain text for legacy support
+- **Extensible format** - Easy to add new message types and fields
+
+### Previous Improvements (v2.0)
+
+Our architecture refactoring brought significant improvements:
 
 #### ✅ **Dependency Optimization**
 - **Removed `anyhow` dependency** - Reduced binary size by using standard `Result<T, Box<dyn std::error::Error>>`
@@ -164,19 +176,38 @@ pub fn subscribe(&mut self) -> Result<(), Error>
 
 #### Application Layer
 
-Your `main.rs` handles all business logic:
+Your `main.rs` handles all business logic with structured JSON messaging:
 
 ```rust
-// Receive raw message data
+// Define your message structures
+#[derive(Serialize, Deserialize, Debug)]
+struct JsonMessage {
+    message: String,
+}
+
+// Receive and parse JSON messages
 match message_receiver.try_recv() {
     Ok(raw_data) => {
-        // Convert to text or parse as JSON - your choice!
-        let message_text = String::from_utf8_lossy(&raw_data);
+        // Parse as JSON with fallback to plain text
+        match serde_json::from_slice::<JsonMessage>(&raw_data) {
+            Ok(msg) => {
+                let response = match msg.message.as_str() {
+                    "ping" => JsonMessage { message: "pong".to_string() },
+                    _ => JsonMessage { message: format!("Unknown: {}", msg.message) },
+                };
 
-        // Handle your specific message format
-        match message_text.trim() {
-            "ping" => app.client.publish("pong")?,
-            _ => app.client.publish(&format!("Echo: {}", message_text))?,
+                // Send structured JSON response
+                let json_response = serde_json::to_string(&response)?;
+                app.client.publish(&json_response)?;
+            }
+            Err(_) => {
+                // Handle plain text messages as fallback
+                let text = String::from_utf8_lossy(&raw_data);
+                let response = JsonMessage {
+                    message: format!("Plain text: {}", text)
+                };
+                app.client.publish(&serde_json::to_string(&response)?)?;
+            }
         }
     }
 }
@@ -246,6 +277,80 @@ certs/
 └── private-key.pem.key         # Device private key
 ```
 
+## 📡 JSON Message Protocol
+
+### Message Format
+
+The ESP32 device now communicates using structured JSON messages:
+
+#### Incoming Message Structure
+```json
+{
+  "message": "command_name"
+}
+```
+
+#### Outgoing Response Structure
+```json
+{
+  "message": "response_content"
+}
+```
+
+### Supported Commands
+
+| Command | Description | Example Request | Example Response |
+|---------|-------------|-----------------|------------------|
+| `ping` | Connectivity test | `{"message": "ping"}` | `{"message": "pong"}` |
+| Any other | Unknown command | `{"message": "test"}` | `{"message": "Unknown action: test"}` |
+| Plain text | Fallback for non-JSON | `Hello World` | `{"message": "Plain text: Hello World"}` |
+
+### Example Communication Flow
+
+**1. Send ping command:**
+```bash
+# Publish to: sensors/commands
+{"message": "ping"}
+```
+
+**2. Receive response:**
+```bash
+# Received on: sensors/data
+{"message": "pong"}
+```
+
+**3. Send unknown command:**
+```bash
+# Publish to: sensors/commands
+{"message": "status"}
+```
+
+**4. Receive error response:**
+```bash
+# Received on: sensors/data
+{"message": "Unknown action: status"}
+```
+
+### Extending the Protocol
+
+Add new commands by modifying the match statement in `main.rs`:
+
+```rust
+let response = match msg.message.as_str() {
+    "ping" => JsonMessage { message: "pong".to_string() },
+    "get_status" => JsonMessage {
+        message: "Device online".to_string()
+    },
+    "restart" => {
+        // Handle restart command
+        JsonMessage { message: "Restarting...".to_string() }
+    },
+    _ => JsonMessage {
+        message: format!("Unknown action: {}", msg.message)
+    },
+};
+```
+
 ## 📋 Configuration Reference
 
 ### Required Settings
@@ -290,12 +395,30 @@ Using AWS IoT Core Test Console:
 1. Go to AWS IoT Core → Test → MQTT test client
 2. **Subscribe** to your device's publish topic: `sensors/data`
 3. **Publish** to your device's subscribe topic: `sensors/commands`
-   ```json
-   {
-     "message": "ping"
-   }
-   ```
-4. You should see the device respond with "pong"
+
+**Send JSON commands:**
+```json
+{
+  "message": "ping"
+}
+```
+
+**Expected JSON response:**
+```json
+{
+  "message": "pong"
+}
+```
+
+**Test plain text (fallback):**
+Send: `Hello ESP32`
+
+Receive:
+```json
+{
+  "message": "Plain text: Hello ESP32"
+}
+```
 
 ### 3. Verify Certificate Authentication
 
@@ -356,21 +479,50 @@ terraform apply
 
 ### Custom Message Formats
 
-The generalized client supports any message format:
+The application now supports structured JSON messaging with fallback:
 
 ```rust
-// Handle JSON messages
-if let Ok(json) = serde_json::from_slice::<MyStruct>(&raw_data) {
-    // Process structured data
+// Define custom message structures
+#[derive(Serialize, Deserialize, Debug)]
+struct SensorData {
+    sensor_type: String,
+    value: f32,
+    timestamp: u64,
 }
 
-// Handle binary data
-if raw_data[0] == 0xFF {
-    // Process binary protocol
+#[derive(Serialize, Deserialize, Debug)]
+struct CommandMessage {
+    action: String,
+    parameters: Option<serde_json::Value>,
 }
 
-// Handle plain text
-let text = String::from_utf8_lossy(&raw_data);
+// Handle different message types
+match serde_json::from_slice::<CommandMessage>(&raw_data) {
+    Ok(cmd) => match cmd.action.as_str() {
+        "read_sensor" => {
+            let sensor_data = SensorData {
+                sensor_type: "temperature".to_string(),
+                value: 23.5,
+                timestamp: get_timestamp(),
+            };
+            app.client.publish(&serde_json::to_string(&sensor_data)?)?;
+        }
+        "set_led" => {
+            // Handle LED control with parameters
+            if let Some(params) = cmd.parameters {
+                // Process LED state from parameters
+            }
+        }
+        _ => {
+            // Handle unknown commands
+        }
+    },
+    Err(_) => {
+        // Fallback to plain text processing
+        let text = String::from_utf8_lossy(&raw_data);
+        // Handle plain text commands
+    }
+}
 ```
 
 ### Adding Sensors
