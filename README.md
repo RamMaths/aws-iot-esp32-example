@@ -577,7 +577,7 @@ match serde_json::from_slice::<CommandMessage>(&raw_data) {
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+GPL-3.0 License - see [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
