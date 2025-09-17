@@ -31,8 +31,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Convert raw data to text
                 let message_text = String::from_utf8_lossy(&raw_data);
                 info!("Received message: {}", message_text);
-                info!("Publishing message: {}", message_text);
-                app.client.publish(&message_text)?;
+
+                // Handle specific messages
+                match message_text.trim() {
+                    "ping" => {
+                        info!("Ping received, sending pong");
+                        app.client.publish("pong")?;
+                    }
+                    _ => {
+                        info!("Echoing message back");
+                        let payload = format!("Echo: {}", message_text);
+                        app.client.publish(&payload)?;
+                    }
+                }
             }
             Err(_) => {
                 // No message received, continue with other tasks
