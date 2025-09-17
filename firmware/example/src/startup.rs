@@ -43,24 +43,24 @@ impl Config {
         log::info!("  cert_key: '{}'", self.cert_key);
     }
     
-    pub fn validate(&self) -> anyhow::Result<()> {
+    pub fn validate(&self) -> Result<(), Box<dyn std::error::Error>> {
         if self.wifi_ssid.is_empty() {
-            return Err(anyhow::anyhow!("WiFi SSID is empty! Please configure wifi_ssid in cfg.toml"));
+            return Err("WiFi SSID is empty! Please configure wifi_ssid in cfg.toml".into());
         }
         if self.wifi_pass.is_empty() {
-            return Err(anyhow::anyhow!("WiFi password is empty! Please configure wifi_pass in cfg.toml"));
+            return Err("WiFi password is empty! Please configure wifi_pass in cfg.toml".into());
         }
         if self.mqtt_url.is_empty() {
-            return Err(anyhow::anyhow!("MQTT URL is empty! Please configure mqtt_url in cfg.toml"));
+            return Err("MQTT URL is empty! Please configure mqtt_url in cfg.toml".into());
         }
         if self.mqtt_client_id.is_empty() {
-            return Err(anyhow::anyhow!("MQTT client ID is empty! Please configure mqtt_client_id in cfg.toml"));
+            return Err("MQTT client ID is empty! Please configure mqtt_client_id in cfg.toml".into());
         }
         if self.mqtt_topic_pub.is_empty() {
-            return Err(anyhow::anyhow!("MQTT publish topic is empty! Please configure mqtt_topic_pub in cfg.toml"));
+            return Err("MQTT publish topic is empty! Please configure mqtt_topic_pub in cfg.toml".into());
         }
         if self.mqtt_topic_sub.is_empty() {
-            return Err(anyhow::anyhow!("MQTT subscribe topic is empty! Please configure mqtt_topic_sub in cfg.toml"));
+            return Err("MQTT subscribe topic is empty! Please configure mqtt_topic_sub in cfg.toml".into());
         }
         
         log::info!("Configuration validation passed!");
@@ -75,7 +75,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn spawn() -> anyhow::Result<App> {
+    pub fn spawn() -> Result<App, Box<dyn std::error::Error>> {
         let peripherals = unsafe { Peripherals::new() };
         let sys_loop = EspSystemEventLoop::take()?;
         let nvs = EspDefaultNvsPartition::take()?;
@@ -100,7 +100,7 @@ impl App {
         
         while !wifi_driver.is_connected()? {
             if retry_count >= MAX_RETRIES {
-                return Err(anyhow::anyhow!("WiFi connection timeout after {} seconds", MAX_RETRIES));
+                return Err(format!("WiFi connection timeout after {} seconds", MAX_RETRIES).into());
             }
             
             let config = wifi_driver.get_configuration()?;

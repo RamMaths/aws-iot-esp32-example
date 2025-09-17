@@ -34,7 +34,6 @@ experimental = ["esp-idf-svc/experimental"]
 [dependencies]
 log = "0.4"
 esp-idf-svc = "0.51"
-anyhow = "1.0.82"
 embedded-svc = "0.28.1"
 toml-cfg = "0.2.0"
 crossbeam-channel = "0.5.15"
