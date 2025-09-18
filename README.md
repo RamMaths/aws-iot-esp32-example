@@ -16,7 +16,7 @@ A comprehensive, production-ready template for connecting ESP32 devices to AWS I
 ### Prerequisites
 
 1. **Development Environment**
-   - Follow the comprehensive installation guide from the official [ESP Rust Book](https://docs.espressif.com/projects/rust/book/installation/riscv-and-xtensa.html)**
+   - Follow the comprehensive installation guide from the official [ESP Rust Book](https://docs.espressif.com/projects/rust/book/installation/riscv-and-xtensa.html)
    - Install `espflash` using this [book guide](https://docs.espressif.com/projects/rust/book/tooling/espflash.html#espflash-1)
    - Install `espmonitor` using the official [repository](https://github.com/esp-rs/espmonitor)
 
