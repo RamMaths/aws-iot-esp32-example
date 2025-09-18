@@ -1,14 +1,17 @@
-variable "thing_name" {
-  description = "Name of the IoT Thing to create"
-  type        = string
-  default     = "my-esp32-device"
+variable "things" {
+  description = "List of IoT Things to create with their configurations"
+  type = list(object({
+    name         = string
+    topic_prefix = string
+  }))
+  default = [
+    {
+      name         = "my-esp32-device"
+      topic_prefix = "esp32"
+    }
+  ]
 }
 
-variable "topic_prefix" {
-  description = "Topic prefix for MQTT topics (replaces 'esp32' in policy)"
-  type        = string
-  default     = "esp32"
-}
 
 variable "region" {
   description = "AWS region where IoT resources will be created"

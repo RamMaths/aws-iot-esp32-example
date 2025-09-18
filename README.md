@@ -20,15 +20,18 @@ A comprehensive, production-ready template for connecting ESP32 devices to AWS I
 ### Prerequisites
 
 1. **Development Environment**
-   ```bash
-   # Install Rust toolchain for ESP32
-   cargo install espup
-   espup install
-   source ~/export-esp.sh
 
-   # Install flashing tools
-   cargo install cargo-espflash
-   ```
+   Follow the comprehensive installation guide from the official ESP Rust Book:
+
+   **📖 [ESP Rust Installation Guide](https://docs.espressif.com/projects/rust/book/installation/riscv-and-xtensa.html)**
+
+   This guide covers:
+   - Installing Rust toolchain for ESP32 (both RISC-V and Xtensa architectures)
+   - Setting up `espup` and required tools
+   - Configuring environment variables
+   - Installing flashing utilities (`cargo-espflash`)
+
+   **Come back here once you have completed the installation steps from the official guide.**
 
 2. **AWS Environment**
    ```bash
@@ -55,13 +58,23 @@ cd terraform
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-Edit `terraform.tfvars` with your settings:
+Edit `terraform.tfvars` to create multiple ESP32 devices:
 ```hcl
-thing_name = "my-esp32-device-001"     # Your unique device name
-topic_prefix = "sensors"               # MQTT topic prefix
+# Create multiple ESP32 things (esp32s3 and esp32c3)
+things = [
+  {
+    name         = "esp32s3"
+    topic_prefix = "esp32"
+  },
+  {
+    name         = "esp32c3"
+    topic_prefix = "esp32"
+  }
+]
+
 region = "us-east-1"                   # Your AWS region
 tags = {
-  Project = "My-IoT-Project"
+  Project = "ESP32-IoT-Multi-Device"
   Environment = "development"
   Owner = "your-name"
 }
@@ -74,20 +87,29 @@ terraform plan
 terraform apply  # Type 'yes' to confirm
 ```
 
-### Step 3: Configure Firmware
+This will create:
+- **Two IoT Things**: `esp32s3` and `esp32c3`
+- **Separate certificate directories**: `certs/esp32s3/` and `certs/esp32c3/`
+- **Shared MQTT topics**: Both devices use `esp32/*` topic prefix
+- **Individual policies**: Each device gets its own policy and certificates
+
+### Step 3: Configure Firmware for Each Device
+
+The new multi-device setup creates separate firmware configurations for each ESP32 variant.
+
+#### For ESP32-S3 Device:
 
 ```bash
 cd ../firmware/example
 
-# Copy certificates from Terraform output
-cp -r ../../terraform/certs/ ./
+# Copy ESP32-S3 certificates
+cp -r ../../terraform/certs/esp32s3/ ./certs/
 
-# Create configuration from Terraform template
-# Terraform will display the exact cfg.toml content needed
+# Create ESP32-S3 configuration
 cp cfg.toml.example cfg.toml
 ```
 
-Edit `cfg.toml` with the values from Terraform output:
+Edit `cfg.toml` for ESP32-S3:
 ```toml
 [example]
 # Wi-Fi Configuration
@@ -96,28 +118,98 @@ wifi_pass = "YOUR_WIFI_PASSWORD"
 
 # AWS IoT Configuration (from Terraform output)
 mqtt_url = "mqtts://your-endpoint.iot.region.amazonaws.com"
-mqtt_client_id = "my-esp32-device-001"
-mqtt_topic_pub = "sensors/data"
-mqtt_topic_sub = "sensors/commands"
+mqtt_client_id = "esp32s3"
+mqtt_topic_pub = "esp32/data"
+mqtt_topic_sub = "esp32/commands"
 
-# Certificate paths (automatically configured by Terraform)
+# Certificate paths (ESP32-S3 specific)
 cert_ca = "certs/AmazonRootCA1.pem"
-cert_crt = "certs/device-certificate.pem.crt"
-cert_key = "certs/private-key.pem.key"
+cert_crt = "certs/[certificate-id]-certificate.pem.crt"
+cert_key = "certs/[certificate-id]-private.pem.key"
 ```
 
-### Step 4: Build and Flash
+#### For ESP32-C3 Device:
 
 ```bash
+# Copy ESP32-C3 certificates to a separate project directory
+cp -r firmware/example/ firmware/exampleC3/
+cd firmware/exampleC3
+
+# Copy ESP32-C3 certificates
+cp -r ../../terraform/certs/esp32c3/ ./certs/
+```
+
+Edit `cfg.toml` for ESP32-C3:
+```toml
+[example]
+# Wi-Fi Configuration
+wifi_ssid = "YOUR_WIFI_NETWORK"
+wifi_pass = "YOUR_WIFI_PASSWORD"
+
+# AWS IoT Configuration (from Terraform output)
+mqtt_url = "mqtts://your-endpoint.iot.region.amazonaws.com"
+mqtt_client_id = "esp32c3"
+mqtt_topic_pub = "esp32/data"
+mqtt_topic_sub = "esp32/commands"
+
+# Certificate paths (ESP32-C3 specific)
+cert_ca = "certs/AmazonRootCA1.pem"
+cert_crt = "certs/[certificate-id]-certificate.pem.crt"
+cert_key = "certs/[certificate-id]-private.pem.key"
+```
+
+**💡 Tip**: The exact certificate filenames will be shown in the Terraform output after running `terraform apply`.
+
+### Step 4: Build and Flash Each Device
+
+#### For ESP32-S3 Device:
+
+```bash
+cd firmware/example
+
+# Configure for ESP32-S3 (Xtensa architecture)
+# Make sure your .cargo/config.toml has:
+# target = "xtensa-esp32s3-espidf"
+
 # Build firmware
 cargo build --release
 
-# Flash to device (ensure ESP32 is connected via USB)
+# Flash to ESP32-S3 device (ensure device is connected via USB)
 cargo run --release
 
 # Or flash manually
 espflash flash --monitor target/xtensa-esp32s3-espidf/release/example
 ```
+
+#### For ESP32-C3 Device:
+
+```bash
+cd ../exampleC3
+
+# Configure for ESP32-C3 (RISC-V architecture)
+# Update .cargo/config.toml with:
+# target = "riscv32imc-esp-espidf"
+
+# Clean previous builds when switching architectures
+cargo clean
+
+# Build firmware
+cargo build --release
+
+# Flash to ESP32-C3 device (ensure device is connected via USB)
+cargo run --release
+
+# Or flash manually
+espflash flash --monitor target/riscv32imc-esp-espidf/release/example
+```
+
+#### Multi-Device Testing
+
+Both devices will:
+- Connect to the same MQTT topics (`esp32/data` and `esp32/commands`)
+- Use their unique client IDs (`esp32s3` and `esp32c3`)
+- Respond to the same commands but with device-specific identification
+- Share the same topic space for inter-device communication
 
 ## 🏛️ Architecture Overview
 

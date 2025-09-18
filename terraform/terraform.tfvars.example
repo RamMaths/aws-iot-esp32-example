@@ -1,12 +1,17 @@
 # Terraform variables for AWS IoT ESP32 Example
 # Copy this file to terraform.tfvars and customize the values
 
-# Name of the IoT Thing to create
-thing_name = "my-esp32-device"
-
-# Topic prefix for MQTT topics (replaces 'esp32' in policy)
-# This allows your device to publish/subscribe to topics like: your-prefix/data, your-prefix/commands
-topic_prefix = "esp32"
+# List of IoT Things to create with their configurations
+things = [
+  {
+    name         = "esp32s3"
+    topic_prefix = "esp32"
+  },
+  {
+    name         = "esp32c3"
+    topic_prefix = "esp32"
+  }
+]
 
 # AWS region where IoT resources will be created
 region = "us-east-1"

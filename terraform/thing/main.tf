@@ -75,28 +75,28 @@ resource "null_resource" "download_certificates" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      # Create certs directory if it doesn't exist
-      mkdir -p certs
-      
+      # Create thing-specific certs directory
+      mkdir -p certs/${var.thing_name}
+
       # Download device certificate
-      echo '${aws_iot_certificate.cert.certificate_pem}' > certs/${aws_iot_certificate.cert.id}-certificate.pem.crt
-      
+      echo '${aws_iot_certificate.cert.certificate_pem}' > certs/${var.thing_name}/${aws_iot_certificate.cert.id}-certificate.pem.crt
+
       # Download public key
-      echo '${aws_iot_certificate.cert.public_key}' > certs/${aws_iot_certificate.cert.id}-public.pem.key
-      
+      echo '${aws_iot_certificate.cert.public_key}' > certs/${var.thing_name}/${aws_iot_certificate.cert.id}-public.pem.key
+
       # Download private key
-      echo '${aws_iot_certificate.cert.private_key}' > certs/${aws_iot_certificate.cert.id}-private.pem.key
-      
-      # Download Amazon Root CA certificates programmatically
-      curl -s https://www.amazontrust.com/repository/AmazonRootCA1.pem -o certs/AmazonRootCA1.pem
-      curl -s https://www.amazontrust.com/repository/AmazonRootCA3.pem -o certs/AmazonRootCA3.pem
-      
-      echo "Certificates downloaded to certs/ directory:"
-      echo "- Device certificate: certs/${aws_iot_certificate.cert.id}-certificate.pem.crt"
-      echo "- Public key: certs/${aws_iot_certificate.cert.id}-public.pem.key"
-      echo "- Private key: certs/${aws_iot_certificate.cert.id}-private.pem.key"
-      echo "- Amazon Root CA 1: certs/AmazonRootCA1.pem"
-      echo "- Amazon Root CA 3: certs/AmazonRootCA3.pem"
+      echo '${aws_iot_certificate.cert.private_key}' > certs/${var.thing_name}/${aws_iot_certificate.cert.id}-private.pem.key
+
+      # Download Amazon Root CA certificates to thing directory (or shared location)
+      curl -s https://www.amazontrust.com/repository/AmazonRootCA1.pem -o certs/${var.thing_name}/AmazonRootCA1.pem
+      curl -s https://www.amazontrust.com/repository/AmazonRootCA3.pem -o certs/${var.thing_name}/AmazonRootCA3.pem
+
+      echo "Certificates downloaded to certs/${var.thing_name}/ directory:"
+      echo "- Device certificate: certs/${var.thing_name}/${aws_iot_certificate.cert.id}-certificate.pem.crt"
+      echo "- Public key: certs/${var.thing_name}/${aws_iot_certificate.cert.id}-public.pem.key"
+      echo "- Private key: certs/${var.thing_name}/${aws_iot_certificate.cert.id}-private.pem.key"
+      echo "- Amazon Root CA 1: certs/${var.thing_name}/AmazonRootCA1.pem"
+      echo "- Amazon Root CA 3: certs/${var.thing_name}/AmazonRootCA3.pem"
     EOT
   }
 
@@ -112,15 +112,14 @@ resource "null_resource" "cleanup_certificates" {
   provisioner "local-exec" {
     when = destroy
     command = <<-EOT
-      # Remove certificate files when destroying
-      rm -f certs/${self.triggers.certificate_id}-certificate.pem.crt
-      rm -f certs/${self.triggers.certificate_id}-public.pem.key  
-      rm -f certs/${self.triggers.certificate_id}-private.pem.key
-      echo "Cleaned up certificate files for ${self.triggers.certificate_id}"
+      # Remove thing-specific certificate directory when destroying
+      rm -rf certs/${self.triggers.thing_name}
+      echo "Cleaned up certificate directory for thing: ${self.triggers.thing_name}"
     EOT
   }
 
   triggers = {
     certificate_id = aws_iot_certificate.cert.id
+    thing_name     = var.thing_name
   }
 }

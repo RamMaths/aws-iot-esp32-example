@@ -1,52 +1,26 @@
-# Pass through outputs from the thing module
-output "thing_name" {
-  description = "Name of the created IoT Thing"
-  value       = module.iot_thing.thing_name
+# Pass through outputs from the things modules
+output "things" {
+  description = "Details of all created IoT Things"
+  value = {
+    for name, thing in module.iot_things : name => {
+      thing_name        = thing.thing_name
+      thing_arn         = thing.thing_arn
+      certificate_id    = thing.certificate_id
+      certificate_arn   = thing.certificate_arn
+      policy_name       = thing.policy_name
+      policy_arn        = thing.policy_arn
+      iot_endpoint      = thing.iot_endpoint
+      mqtt_url          = thing.mqtt_url
+      certificate_files = thing.certificate_files
+      cfg_toml_template = thing.cfg_toml_template
+    }
+  }
 }
 
-output "thing_arn" {
-  description = "ARN of the created IoT Thing"
-  value       = module.iot_thing.thing_arn
-}
-
-output "certificate_id" {
-  description = "ID of the created certificate"
-  value       = module.iot_thing.certificate_id
-}
-
-output "certificate_arn" {
-  description = "ARN of the created certificate"
-  value       = module.iot_thing.certificate_arn
-}
-
-output "policy_name" {
-  description = "Name of the created IoT policy"
-  value       = module.iot_thing.policy_name
-}
-
-output "policy_arn" {
-  description = "ARN of the created IoT policy"
-  value       = module.iot_thing.policy_arn
-}
-
+# Individual outputs for backward compatibility
 output "iot_endpoint" {
   description = "AWS IoT Core endpoint for MQTT connections"
-  value       = module.iot_thing.iot_endpoint
-}
-
-output "mqtt_url" {
-  description = "Complete MQTT URL for connections"
-  value       = module.iot_thing.mqtt_url
-}
-
-output "certificate_files" {
-  description = "Paths to downloaded certificate files"
-  value       = module.iot_thing.certificate_files
-}
-
-output "cfg_toml_template" {
-  description = "Template configuration for cfg.toml file"
-  value       = module.iot_thing.cfg_toml_template
+  value       = length(module.iot_things) > 0 ? values(module.iot_things)[0].iot_endpoint : null
 }
 
 # Instructions for next steps
@@ -57,28 +31,22 @@ output "next_steps" {
 🎉 AWS IoT resources created successfully!
 
 📁 Certificate files downloaded to:
-  - ${module.iot_thing.certificate_files.certificate}
-  - ${module.iot_thing.certificate_files.private_key}
-  - ${module.iot_thing.certificate_files.public_key}
-  - ${module.iot_thing.certificate_files.root_ca_1}
-  - ${module.iot_thing.certificate_files.root_ca_3}
+${join("\n", [for name, thing in module.iot_things : "  📁 ${name}:\n    - ${thing.certificate_files.certificate}\n    - ${thing.certificate_files.private_key}\n    - ${thing.certificate_files.public_key}\n    - ${thing.certificate_files.root_ca_1}\n    - ${thing.certificate_files.root_ca_3}"])}
 
 📋 Next steps:
-1. Copy certificate files to your firmware project:
-   cp -r certs/ ../firmware/example/
+1. Copy certificate files to your firmware projects:
+${join("\n", [for name, thing in module.iot_things : "   cp -r certs/${name}/ ../firmware/${name}/"])}
 
-2. Create/update your cfg.toml file with:
-${module.iot_thing.cfg_toml_template}
+2. Create/update cfg.toml files for each device:
+${join("\n\n", [for name, thing in module.iot_things : "   📄 ${name}/cfg.toml:\n${thing.cfg_toml_template}"])}
 
-3. Build and flash your ESP32 firmware:
-   cd ../firmware/example
-   cargo build --release
-   cargo run --release
+3. Build and flash your ESP32 firmware for each device:
+${join("\n", [for name, thing in module.iot_things : "   cd ../firmware/${name} && cargo build --release && cargo run --release"])}
 
 🌐 MQTT Connection Details:
-  - Endpoint: ${module.iot_thing.iot_endpoint}
-  - Thing Name: ${module.iot_thing.thing_name}
-  - Topics: ${var.topic_prefix}/*
-  
+  - Endpoint: ${length(module.iot_things) > 0 ? values(module.iot_things)[0].iot_endpoint : "N/A"}
+  - Things Created: ${join(", ", keys(module.iot_things))}
+  - Topics: esp32/* (shared across all devices)
+
 EOT
 }
