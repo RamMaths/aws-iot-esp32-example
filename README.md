@@ -19,6 +19,8 @@ A comprehensive, production-ready template for connecting ESP32 devices to AWS I
    - Follow the comprehensive installation guide from the official [ESP Rust Book](https://docs.espressif.com/projects/rust/book/installation/riscv-and-xtensa.html)
    - Install `espflash` using this [book guide](https://docs.espressif.com/projects/rust/book/tooling/espflash.html#espflash-1)
    - Install `espmonitor` using the official [repository](https://github.com/esp-rs/espmonitor)
+   - Install `aws-cli` using the official [docs](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+   - Install `terraform` using the official [docs](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
 
 3. **AWS Environment**
    ```bash
