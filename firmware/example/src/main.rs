@@ -1,10 +1,10 @@
 pub mod client;
 pub mod startup;
 use log::*;
-use std::time::Duration;
-use startup::App;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use startup::App;
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct JsonMessage {
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             "ping" => {
                                 info!("Ping received, sending pong");
                                 JsonMessage {
-                                    message: "pong".to_string(),
+                                    message: format!("pong from: {}", app.config.mqtt_client_id),
                                 }
                             }
                             _ => {

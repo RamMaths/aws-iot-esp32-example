@@ -13,14 +13,14 @@ harness = false # do not use the built in cargo test harness -> resolve rust-ana
 
 [profile.release]
 opt-level = "s"
-# codegen-units = 1 # LLVM can perform better optimizations using a single thread
-# debug = 2
-# debug-assertions = false
-# incremental = false
-# lto = true
-# overflow-checks = false
-# panic = "abort"
-# strip = true  # Automatically strip symbols from the binary.
+codegen-units = 1 # LLVM can perform better optimizations using a single thread
+debug = 2
+debug-assertions = false
+incremental = false
+lto = true
+overflow-checks = false
+panic = "abort"
+strip = true  # Automatically strip symbols from the binary.
 #
 [profile.dev]
 debug = true    # Symbols are nice and they don't increase the size on Flash
