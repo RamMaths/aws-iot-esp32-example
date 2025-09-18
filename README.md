@@ -7,12 +7,8 @@ A comprehensive, production-ready template for connecting ESP32 devices to AWS I
 - **🔒 Secure MQTT over TLS** - End-to-end encrypted communication with AWS IoT Core
 - **🏗️ Infrastructure as Code** - Complete Terraform automation for AWS resources
 - **🦀 Modern Rust Firmware** - Clean, safe, and efficient ESP32 code using esp-idf-svc
-- **📡 JSON Message Protocol** - Structured messaging with automatic parsing and type safety
-- **📦 Generalized MQTT Client** - Reusable client that handles any message format
 - **⚡ Non-blocking Architecture** - Efficient message processing without blocking main thread
 - **🔧 Configuration-driven** - No hardcoded secrets, all settings via TOML files
-- **🔄 Backward Compatibility** - Fallback support for plain text messages
-- **📊 Comprehensive Logging** - Detailed debugging and monitoring capabilities
 - **🔄 Automatic Certificate Management** - Seamless certificate provisioning and loading
 
 ## 🚀 Quick Start Guide
@@ -30,10 +26,12 @@ A comprehensive, production-ready template for connecting ESP32 devices to AWS I
    - Setting up `espup` and required tools
    - Configuring environment variables
    - Installing flashing utilities (`cargo-espflash`)
+  
+   Also install `espmonitor` using the official [repository](https://github.com/esp-rs/espmonitor)
 
    **Come back here once you have completed the installation steps from the official guide.**
 
-2. **AWS Environment**
+3. **AWS Environment**
    ```bash
    # Install and configure AWS CLI
    aws configure
@@ -93,9 +91,7 @@ This will create:
 - **Shared MQTT topics**: Both devices use `esp32/*` topic prefix
 - **Individual policies**: Each device gets its own policy and certificates
 
-### Step 3: Configure Firmware for Each Device
-
-The new multi-device setup creates separate firmware configurations for each ESP32 variant.
+### Step 3: Configure Firmware
 
 #### For ESP32-S3 Device:
 
@@ -119,8 +115,8 @@ wifi_pass = "YOUR_WIFI_PASSWORD"
 # AWS IoT Configuration (from Terraform output)
 mqtt_url = "mqtts://your-endpoint.iot.region.amazonaws.com"
 mqtt_client_id = "esp32s3"
-mqtt_topic_pub = "esp32/data"
-mqtt_topic_sub = "esp32/commands"
+mqtt_topic_pub = "esp32/pub"
+mqtt_topic_sub = "esp32/sub"
 
 # Certificate paths (ESP32-S3 specific)
 cert_ca = "certs/AmazonRootCA1.pem"
@@ -128,39 +124,7 @@ cert_crt = "certs/[certificate-id]-certificate.pem.crt"
 cert_key = "certs/[certificate-id]-private.pem.key"
 ```
 
-#### For ESP32-C3 Device:
-
-```bash
-# Copy ESP32-C3 certificates to a separate project directory
-cp -r firmware/example/ firmware/exampleC3/
-cd firmware/exampleC3
-
-# Copy ESP32-C3 certificates
-cp -r ../../terraform/certs/esp32c3/ ./certs/
-```
-
-Edit `cfg.toml` for ESP32-C3:
-```toml
-[example]
-# Wi-Fi Configuration
-wifi_ssid = "YOUR_WIFI_NETWORK"
-wifi_pass = "YOUR_WIFI_PASSWORD"
-
-# AWS IoT Configuration (from Terraform output)
-mqtt_url = "mqtts://your-endpoint.iot.region.amazonaws.com"
-mqtt_client_id = "esp32c3"
-mqtt_topic_pub = "esp32/data"
-mqtt_topic_sub = "esp32/commands"
-
-# Certificate paths (ESP32-C3 specific)
-cert_ca = "certs/AmazonRootCA1.pem"
-cert_crt = "certs/[certificate-id]-certificate.pem.crt"
-cert_key = "certs/[certificate-id]-private.pem.key"
-```
-
-**💡 Tip**: The exact certificate filenames will be shown in the Terraform output after running `terraform apply`.
-
-### Step 4: Build and Flash Each Device
+### Step 4: Build and Flash
 
 #### For ESP32-S3 Device:
 
@@ -201,108 +165,6 @@ cargo run --release
 
 # Or flash manually
 espflash flash --monitor target/riscv32imc-esp-espidf/release/example
-```
-
-#### Multi-Device Testing
-
-Both devices will:
-- Connect to the same MQTT topics (`esp32/data` and `esp32/commands`)
-- Use their unique client IDs (`esp32s3` and `esp32c3`)
-- Respond to the same commands but with device-specific identification
-- Share the same topic space for inter-device communication
-
-## 🏛️ Architecture Overview
-
-### Latest Improvements (v2.1)
-
-Our latest updates include structured JSON messaging capabilities:
-
-#### ✅ **JSON Message Protocol**
-- **Structured messaging** - JSON format for reliable command/response patterns
-- **Type-safe parsing** - Serde-based serialization with compile-time validation
-- **Backward compatibility** - Fallback to plain text for legacy support
-- **Extensible format** - Easy to add new message types and fields
-
-### Previous Improvements (v2.0)
-
-Our architecture refactoring brought significant improvements:
-
-#### ✅ **Dependency Optimization**
-- **Removed `anyhow` dependency** - Reduced binary size by using standard `Result<T, Box<dyn std::error::Error>>`
-- **Lightweight error handling** - Clean error propagation without external dependencies
-
-#### ✅ **Improved Separation of Concerns**
-- **Generalized MQTT Client** - Client struct handles raw data without message format assumptions
-- **Application-layer parsing** - Business logic separated from transport layer
-- **Modular design** - Easy to extend and maintain
-
-#### ✅ **Non-blocking Message Processing**
-- **Background message listener** - MQTT messages processed in dedicated thread
-- **Channel-based communication** - Non-blocking message passing between threads
-- **Responsive main loop** - Main application never blocks on MQTT operations
-
-### Code Structure
-
-```
-firmware/example/src/
-├── main.rs         # Application entry point and message processing
-├── client.rs       # Generalized MQTT client (transport layer)
-├── startup.rs      # WiFi and application initialization
-└── lib.rs          # Library exports
-```
-
-#### Client Architecture
-
-The `Client` struct is now completely generalized:
-
-```rust
-// Returns raw bytes - no assumptions about message format
-pub fn start_message_listener(&mut self) -> Result<Receiver<Vec<u8>>, Error>
-
-// Simple publish interface
-pub fn publish(&mut self, payload: &str) -> Result<(), Error>
-
-// Clean subscription management
-pub fn subscribe(&mut self) -> Result<(), Error>
-```
-
-#### Application Layer
-
-Your `main.rs` handles all business logic with structured JSON messaging:
-
-```rust
-// Define your message structures
-#[derive(Serialize, Deserialize, Debug)]
-struct JsonMessage {
-    message: String,
-}
-
-// Receive and parse JSON messages
-match message_receiver.try_recv() {
-    Ok(raw_data) => {
-        // Parse as JSON with fallback to plain text
-        match serde_json::from_slice::<JsonMessage>(&raw_data) {
-            Ok(msg) => {
-                let response = match msg.message.as_str() {
-                    "ping" => JsonMessage { message: "pong".to_string() },
-                    _ => JsonMessage { message: format!("Unknown: {}", msg.message) },
-                };
-
-                // Send structured JSON response
-                let json_response = serde_json::to_string(&response)?;
-                app.client.publish(&json_response)?;
-            }
-            Err(_) => {
-                // Handle plain text messages as fallback
-                let text = String::from_utf8_lossy(&raw_data);
-                let response = JsonMessage {
-                    message: format!("Plain text: {}", text)
-                };
-                app.client.publish(&serde_json::to_string(&response)?)?;
-            }
-        }
-    }
-}
 ```
 
 ## 🛠️ Detailed Setup Instructions
@@ -396,44 +258,6 @@ When switching targets, always clean previous builds:
 
 ```bash
 cargo clean
-cargo build --release
-```
-
-#### Architecture Differences
-
-| Chip Family | Architecture | Rust Target | Key Features |
-|-------------|--------------|-------------|--------------|
-| ESP32 | Xtensa LX6 | `xtensa-esp32-espidf` | Dual-core, WiFi + Bluetooth |
-| ESP32-S2 | Xtensa LX7 | `xtensa-esp32s2-espidf` | Single-core, WiFi only |
-| ESP32-S3 | Xtensa LX7 | `xtensa-esp32s3-espidf` | Dual-core, WiFi + Bluetooth 5 |
-| ESP32-C3 | RISC-V | `riscv32imc-esp-espidf` | Single-core, WiFi + Bluetooth 5 |
-| ESP32-C6 | RISC-V | `riscv32imac-esp-espidf` | WiFi 6 + Bluetooth 5 |
-| ESP32-H2 | RISC-V | `riscv32imac-esp-espidf` | Thread/Zigbee focused |
-
-#### Troubleshooting Architecture Changes
-
-**"Linker not found" errors:**
-```bash
-# Ensure you've installed the correct toolchain
-espup install --targets <your-chip>
-source ~/export-esp.sh
-
-# Check installed targets
-rustup target list --installed | grep esp
-```
-
-**"Target not found" errors:**
-```bash
-# Install the specific Rust target
-rustup target add riscv32imc-esp-espidf  # For RISC-V
-rustup target add xtensa-esp32s3-espidf  # For Xtensa
-```
-
-**Build cache issues:**
-```bash
-# Clean everything and rebuild
-cargo clean
-rm -rf target/
 cargo build --release
 ```
 
@@ -595,193 +419,13 @@ Using AWS IoT Core Test Console:
 **Expected JSON response:**
 ```json
 {
-  "message": "pong"
-}
-```
-
-**Test plain text (fallback):**
-Send: `Hello ESP32`
-
-Receive:
-```json
-{
-  "message": "Plain text: Hello ESP32"
+  "message": "pong from {your mqtt thing id}"
 }
 ```
 
 ### 3. Verify Certificate Authentication
 
 Check AWS IoT Core logs in CloudWatch for successful connections.
-
-## 🐛 Troubleshooting
-
-### Build Issues
-
-**ESP32 Architecture/Target Issues:**
-
-*"Linker 'riscv32-esp-elf-gcc' not found" (when switching to ESP32-C3):*
-```bash
-# Install RISC-V toolchain
-espup install --targets esp32c3
-source ~/export-esp.sh
-cargo clean
-cargo build --release
-```
-
-*"Linker 'xtensa-esp32s3-elf-gcc' not found" (when switching to ESP32-S3):*
-```bash
-# Install Xtensa toolchain
-espup install --targets esp32s3
-source ~/export-esp.sh
-cargo clean
-cargo build --release
-```
-
-*"Target 'riscv32imc-esp-espidf' not found":*
-```bash
-# The target wasn't installed properly
-rustup target add riscv32imc-esp-espidf
-```
-
-*Mixed architecture build errors:*
-```bash
-# Clean all build artifacts when switching architectures
-cargo clean
-rm -rf target/
-cargo build --release
-```
-
-**"anyhow not found" errors:**
-- ✅ Fixed in v2.0 - We removed the anyhow dependency
-
-**Certificate loading errors:**
-```bash
-# Verify certificates exist
-ls -la certs/
-# Verify cfg.toml paths are correct
-cat cfg.toml
-```
-
-**WiFi connection issues:**
-```bash
-# Enable debug logging in main.rs
-log::set_max_level(log::LevelFilter::Debug);
-```
-
-### AWS/Terraform Issues
-
-**Permission denied:**
-```bash
-# Verify AWS credentials
-aws sts get-caller-identity
-
-# Check IoT permissions
-aws iot describe-endpoint --endpoint-type iot:Data-ATS
-```
-
-**Terraform state issues:**
-```bash
-# Reset if needed (destroys resources!)
-terraform destroy
-terraform apply
-```
-
-### Runtime Issues
-
-**MQTT connection failures:**
-- Verify IoT policy allows `iot:Connect`, `iot:Publish`, `iot:Subscribe`
-- Check certificate is ACTIVE in AWS IoT Console
-- Ensure device clock is accurate (NTP sync)
-
-**Message not received:**
-- Verify topic names match exactly
-- Check IoT policy allows operations on your topics
-- Monitor AWS IoT logs in CloudWatch
-
-## 🚀 Extending the Project
-
-### Custom Message Formats
-
-The application now supports structured JSON messaging with fallback:
-
-```rust
-// Define custom message structures
-#[derive(Serialize, Deserialize, Debug)]
-struct SensorData {
-    sensor_type: String,
-    value: f32,
-    timestamp: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct CommandMessage {
-    action: String,
-    parameters: Option<serde_json::Value>,
-}
-
-// Handle different message types
-match serde_json::from_slice::<CommandMessage>(&raw_data) {
-    Ok(cmd) => match cmd.action.as_str() {
-        "read_sensor" => {
-            let sensor_data = SensorData {
-                sensor_type: "temperature".to_string(),
-                value: 23.5,
-                timestamp: get_timestamp(),
-            };
-            app.client.publish(&serde_json::to_string(&sensor_data)?)?;
-        }
-        "set_led" => {
-            // Handle LED control with parameters
-            if let Some(params) = cmd.parameters {
-                // Process LED state from parameters
-            }
-        }
-        _ => {
-            // Handle unknown commands
-        }
-    },
-    Err(_) => {
-        // Fallback to plain text processing
-        let text = String::from_utf8_lossy(&raw_data);
-        // Handle plain text commands
-    }
-}
-```
-
-### Adding Sensors
-
-1. **Add hardware interfaces** in main.rs
-2. **Create data structures** for your sensor data
-3. **Publish sensor readings** using `client.publish()`
-4. **Handle commands** in the message processing loop
-
-### Multiple Device Management
-
-1. **Deploy multiple Terraform instances** with different `thing_name`
-2. **Use topic patterns** like `devices/{device_id}/data`
-3. **Implement device discovery** using MQTT topics
-
-## 🔐 Security Best Practices
-
-1. **Certificate Management**
-   - Rotate certificates regularly
-   - Use unique certificates per device
-   - Store private keys securely
-
-2. **Network Security**
-   - Use strong WiFi passwords
-   - Consider VPN for sensitive deployments
-   - Monitor network traffic
-
-3. **Access Control**
-   - Implement least-privilege IoT policies
-   - Regularly audit permissions
-   - Use CloudTrail for monitoring
-
-4. **Code Security**
-   - Never commit secrets to version control
-   - Validate all input data
-   - Use secure coding practices
 
 ## 📈 Performance Considerations
 
