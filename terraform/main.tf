@@ -1,6 +1,5 @@
 provider "aws" {
   region  = var.region
-  profile = "ramses"
 }
 
 # Data source to get current AWS account ID
